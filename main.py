@@ -34,21 +34,32 @@ def unzip(url):
 
     lp = local_path(url)
     local_directory = lp.replace(".zip", "")
-    if not os.path.exists(local_directory):
-        print(f"Data unzipping")
+    if "2021" in url:
+        target_directory = local_directory.replace(".zip", "")
+    else:
+        target_directory = "data"
+    if not os.path.exists(target_directory):
+        print(f"Data unzipping {lp} -> {target_directory}")
+        # for 2021 and before, we need to add the year directory
         with zipfile.ZipFile(lp, "r") as zip_ref:
-            zip_ref.extractall("data")
-        print(f"Data unzipped successfully to data/ directory.")
+            zip_ref.extractall(target_directory)
 
+        print(f"Data unzipped successfully to {target_directory} directory.")
 
-def main():
+def download():
     os.makedirs("data", exist_ok=True)
-    url = "https://f001.backblazeb2.com/file/Backblaze-Hard-Drive-Data/data_Q1_2024.zip"
-    download_data(url)
-    unzip(url)
+    for year in range(2021, 2025):
+        for quarter in range(1, 5):
+            url = f"https://f001.backblazeb2.com/file/Backblaze-Hard-Drive-Data/data_Q{quarter}_{year}.zip"
+            try:
+                download_data(url)
+                unzip(url)
+            except Exception as e:
+                continue
+def main():
+    download()
 
-    # glob over the data directory and join all the csv together
-
+    # prepare processing pipeline
     for g in glob.glob("data/**"):
         if "__MACOSX" in g:
             continue

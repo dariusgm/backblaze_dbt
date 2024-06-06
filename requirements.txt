@@ -3,3 +3,4 @@ dbt-duckdb
 duckdb
 requests
 pandas
+joblib
