@@ -6,8 +6,10 @@ import os
 import zipfile
 
 import duckdb
-import requests
 import pandas as pd
+import requests
+from joblib import Parallel, delayed
+
 
 # download the data from backblaze
 def download_data(url):
@@ -33,7 +35,7 @@ def unzip(url):
     """
 
     lp = local_path(url)
-    local_directory = lp.replace(".zip", "")
+    local_directory = lp.replace(".zip", "").strip()
     if "2021" in url:
         target_directory = local_directory.replace(".zip", "")
     else:
@@ -46,6 +48,7 @@ def unzip(url):
 
         print(f"Data unzipped successfully to {target_directory} directory.")
 
+
 def download():
     os.makedirs("data", exist_ok=True)
     for year in range(2021, 2025):
@@ -56,27 +59,43 @@ def download():
                 unzip(url)
             except Exception as e:
                 continue
+
+
+def generate_model(quarter):
+    with open(f"models/bronze/{quarter}.sql", "wt") as file:
+        file.write(f"""SELECT * FROM {quarter}""")
+
+
+
 def main():
     download()
-
+    files_missing = []
     # prepare processing pipeline
-    for g in glob.glob("data/**"):
-        if "__MACOSX" in g:
-            continue
-        if ".zip" in g:
-            continue
+    target_duckdb_file = "dev.duckdb"
+    with duckdb.connect(target_duckdb_file) as con:
+        for g in glob.glob("data/**"):
+            if "__MACOSX" in g:
+                continue
+            if ".zip" in g:
+                continue
 
-        _data, quarter = g.split("/")
-        # create new for each quarter a table
-        # with all days inside
-        database_file = f"{quarter}.duckdb"
-        if not os.path.exists(database_file):
-            with duckdb.connect(database_file) as con:
-                for file in glob.glob(f"{g}/*.csv"):
-                    print(f"Processing {file}")
+            _data, quarter = g.split("/")
+            # create new for each quarter a table
+            # with all days inside
+
+            for file in glob.glob(f"data/{quarter}/*.csv"):
+                try:
+                    _data, quarter, timestamp = file.split("/")
+                    timestamp = timestamp.replace(".csv", "").replace("-", "")
+                    print(f"Processing data for quarter {quarter} and timestamp {timestamp}")
                     df = pd.read_csv(file, low_memory=False, dtype="str")
-                    duckdb.sql(f"CREATE TABLE IF NOT EXISTS {quarter}  AS SELECT * FROM df")
-                    duckdb.sql(f"INSERT INTO {quarter} SELECT * FROM df")
+                    con.register("timestamp", df)
+                    con.sql(f"CREATE TABLE IF NOT EXISTS data_{timestamp} AS SELECT * FROM timestamp")
+                except Exception as e:
+                    print(f"An error occurred while processing the data for quarter {quarter}: {e}")
+
+
+
 
 if __name__ == '__main__':
     main()
