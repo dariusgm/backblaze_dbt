@@ -8,7 +8,6 @@ import zipfile
 import duckdb
 import pandas as pd
 import requests
-from joblib import Parallel, delayed
 
 
 # download the data from backblaze
@@ -66,7 +65,6 @@ def generate_model(quarter):
         file.write(f"""SELECT * FROM {quarter}""")
 
 
-
 def main():
     download()
     files_missing = []
@@ -93,8 +91,6 @@ def main():
                     con.sql(f"CREATE TABLE IF NOT EXISTS data_{timestamp} AS SELECT * FROM timestamp")
                 except Exception as e:
                     print(f"An error occurred while processing the data for quarter {quarter}: {e}")
-
-
 
 
 if __name__ == '__main__':
